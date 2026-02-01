@@ -85,5 +85,24 @@ void OffboardControl::publish_trajectory_setpoint()
 }
 ```
 
-## 2. 截图
-![trajectory_tracking](/images/trajectory_tracking.png)
+
+
+## 2. 前馈
+```c++
+	// 2. 速度前馈 (一阶导数)
+	msg.velocity[0] = -radius * omega * std::sin(omega * t);
+	msg.velocity[1] =  radius * omega * std::cos(omega * t);
+	msg.velocity[2] = 0.0;
+
+	// 3. 加速度前馈 (二阶导数)
+	msg.acceleration[0] = -radius * omega * omega * std::cos(omega * t);
+	msg.acceleration[1] = -radius * omega * omega * std::sin(omega * t);
+	msg.acceleration[2] = 0.0;
+```
+有前馈：
+![alt text](</images/trajectory_tracking_1.png>)
+
+无前馈：
+![alt text](</images/trajectory_tracking_2.png>)
+
+飞机是逆时针飞行的，可以看到无前馈时实际轨迹滞后于期望轨迹；有前馈时实际轨迹甚至超前于期望轨迹。

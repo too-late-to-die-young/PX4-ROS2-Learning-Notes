@@ -21,11 +21,12 @@
 
 # 2.1
 
-ubuntu自带的截屏太巨大了，push不上去，装了flameshot
-
-
+ubuntu自带的截屏太巨大了，装了flameshot
 
 学习pid调参
-实物实验录包（？之后再学吧
+
+录包（只写了命令行，没有实操
 
 移植以上代码到docker里面并完善笔记
+
+遇到了一个匪夷所思的问题，plotjuggler能订阅in，但显示不出in。
