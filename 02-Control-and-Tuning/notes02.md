@@ -39,26 +39,29 @@ Vehicle Setup -> Parameters，搜索并修改参数：
 
 新版QGC提供了专门的可视化调参界面，直接用这个更好：
 **Vehicle Setup -> PID Tuning**
-*QGC里面还有Attitude Controller和Rate Controller，但这两个在px4的默认飞机模型里应该已经调好了，先不管。*
+
 
 ### PID思路
-先在gazebo给无人机加一个扰动。找到Apply Force/Torque插件，在entity tree选中飞机，填入施力大小和方向（y：1000N），按一下APPLY FORCE就松手（不要一直按，会被击飞），然后立刻在QGC里调参。
+可以先在gazebo给无人机加一个扰动。找到Apply Force/Torque插件，在entity tree选中飞机，填入施力大小和方向（y：1000N），按一下APPLY FORCE就松手（不要一直按，会被击飞）。
 
 ![alt text](/images/control_and_tuning_2.png)
 先调 **Velocity（内环）**，再调 **Position（外环）**。
+*QGC里面还有Attitude Controller和Rate Controller，但这两个在px4的默认飞机模型里应该已经调好了，先不管。*
 
 #### Velocity：
+
+调参顺序：P I D。
 ##### P：MPC_XY_VEL_P_ACC
-P小：回复慢，哪怕没有扰动也会有明显误差，但相对平稳（但如果I太大的话，P太小也会引起震荡）。
-P大：回复快，误差小。会因为回复太猛产生震荡，需要用D来平滑一下。
+P小：回复慢，哪怕没有扰动也会有明显误差，但相对平稳（但如果I太大的话，P太小也会引起振荡）。
+P大：回复快，误差小。会因为回复太猛产生振荡，需要用D来平滑一下。
+只有P的话可能会有稳态误差（因为趋近于期望位置时加速度不断减小，在某时刻P提供的推力被阻力抵消，很可能在到达期望位置前飞机已经停下来了）,所以还需要I。
 
 ##### I：MPC_XY_VEL_I_ACC
-用于处理累计误差，太大会严重震荡。
-如果I比较大的话，P过大或过小都会有明显震荡，在中间某个位置震荡比较小。
+用于消除稳态误差，太大会严重振荡/超调。
 
 ##### D：MPC_XY_VEL_D_ACC
-用来弥补P太大导致的震荡问题（我们想要P带来的回复速度，但不想要震荡）。
-因为是对P的补偿，效果基本上就是和P反着来。
+用来弥补PI太大导致的振荡问题（我们想要PI带来的回复速度，但不想要振荡）。
+因为是对PI的补偿，效果基本上就是和P反着来。
 
 
 #### Position
@@ -68,15 +71,20 @@ P大：回复快，误差小。会因为回复太猛产生震荡，需要用D来
 
 ## 3.录包
 ### ROS2
+ROS话题信息等。
 工作空间下：
 ```bash
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 source install/setup.bash
-开始录制（指定保存文件名，方便后续查找）
-ros2 bag record -o circle_test_v1 /mavros/local_position/pose /trajectory_setpoint
+#开始录制（指定保存文件名和位置）
+ros2 bag record -o ~/文档/PX4-ROS2-Learning-Notes/bags/circle_test_v1 /mavros/local_position/pose /fmu/in/trajectory_setpoint
 ```
+```Ctrl + C```停止录包。
+
+ROS Bag可以在Plotjuggler里面打开查看。
 
 ### PX4 ULog
+飞控信息。
 在PX4 终端（或通过 QGC 里的控制台）：
 ```bash
 #开始录制
@@ -85,7 +93,7 @@ logger start
 #结束录制
 logger stop
 ```
+仿真默开启认录包，自动存放在PX4目录下的```build/px4_sitl_default/tmp/rootfs/log/```
 
-存放在PX4目录下的```build/px4_sitl_default/tmp/rootfs/log/```
-
-这个东西可以传到Flight Review。
+这个东西可以传到Flight Review。 https://logs.px4.io/
+我随便传了一个试试：https://logs.px4.io/plot_app?log=d9e413bc-d2aa-4242-aac7-7986c2f4f7b1
