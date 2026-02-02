@@ -42,15 +42,23 @@ Vehicle Setup -> Parameters，搜索并修改参数：
 
 
 ### PID思路
-可以先在gazebo给无人机加一个扰动。找到Apply Force/Torque插件，在entity tree选中飞机，填入施力大小和方向（y：1000N），按一下APPLY FORCE就松手（不要一直按，会被击飞）。
+找到的一些资料：
+[QGC官方文档](https://docs.qgroundcontrol.com/master/en/qgc-user-guide/setup_view/tuning_px4.html)
+[【PX4姿态环PID在线调参经验分享】](https://www.bilibili.com/video/BV1JK411p7H6/?share_source=copy_web&vd_source=6a65513384955cc33f848d6a6894e1a1)
+[【PX4位置环PID在线调参经验分享】](https://www.bilibili.com/video/BV1Xz411i7CB/?share_source=copy_web&vd_source=6a65513384955cc33f848d6a6894e1a1)
 
+可以先在gazebo给无人机加一个扰动。找到Apply Force/Torque插件，在entity tree选中飞机，填入施力大小和方向（y：1000N），按一下APPLY FORCE就松手（不要一直按，会被击飞）。
 ![alt text](/images/control_and_tuning_2.png)
+更好的解决办法是使用游戏手柄或实体遥控器主动给阶跃信号，但我没有，只有QGC的虚拟摇杆。
+
 先调 **Velocity（内环）**，再调 **Position（外环）**。
-*QGC里面还有Attitude Controller和Rate Controller，但这两个在px4的默认飞机模型里应该已经调好了，先不管。*
+*QGC里面还有Attitude Controller和Rate Controller，但这两个在px4的默认飞机仿真模型里应该已经调好了，先不管。*
+
+
 
 #### Velocity：
 
-调参顺序：P I D。
+调参顺序：P I D（存疑）。
 ##### P：MPC_XY_VEL_P_ACC
 P小：回复慢，哪怕没有扰动也会有明显误差，但相对平稳（但如果I太大的话，P太小也会引起振荡）。
 P大：回复快，误差小。会因为回复太猛产生振荡，需要用D来平滑一下。
@@ -95,5 +103,5 @@ logger stop
 ```
 仿真默开启认录包，自动存放在PX4目录下的```build/px4_sitl_default/tmp/rootfs/log/```
 
-这个东西可以传到Flight Review。 https://logs.px4.io/
+这个东西可以传到[Flight Review](https://logs.px4.io/)。
 我随便传了一个试试：https://logs.px4.io/plot_app?log=d9e413bc-d2aa-4242-aac7-7986c2f4f7b1
