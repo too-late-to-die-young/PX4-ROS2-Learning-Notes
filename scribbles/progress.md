@@ -30,3 +30,19 @@ ubuntu自带的截屏太巨大了，装了flameshot
 移植以上代码到docker里面并完善笔记
 
 遇到了一个匪夷所思的问题，plotjuggler能订阅in，但显示不出in。
+
+
+# 2.2
+
+水了一天，一直在看那个心得。
+
+尝试了录包。
+
+看了一点docker视频课。
+
+试了试qgc虚拟摇杆，还是没法替代遥控器调参。
+
+# 2.3
+看两个docker的课，把docker basic command写完。
+
+
