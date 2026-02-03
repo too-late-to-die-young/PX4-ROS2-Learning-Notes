@@ -45,4 +45,8 @@ ubuntu自带的截屏太巨大了，装了flameshot
 # 2.3
 看两个docker的课，把docker basic command写完。
 
+草 太多了 根本学不完
 
+明天再修修 basic command，全部改用表格好了
+
+明天如果没有新活的话就去试试子网通信和尝试解决共享网络遇到的问题

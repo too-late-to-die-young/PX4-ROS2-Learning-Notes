@@ -20,6 +20,8 @@
 |`docker logs [ID]`|查看日志|`docker logs -f [ID]`实时滚动查看日志|
 |`docker exec [ID] ps -ef`|查看容器内正在运行的进程||
 |`docker exec -it [ID] /bin/bash`|进入容器的交互式终端||
+|`docker network create [网络名称]`|创建一个自定义桥接网络|只有自定义网络才支持容器名互访（DNS 解析）|
+
 
 
 ## 2.`docker run`详细参数
@@ -38,6 +40,8 @@
 |`-it --rm`|交互模式&运行后删除|临时调试一个容器|
 |`--restart always`|自动重启|无论容器因为什么停止，立即尝试重启该容器|
 |`--restart unless-stopped`|自动重启|除了手动停止的情况，自动重启该容器|
+|`--network host`/`--net=host`|共享宿主机网络|机器人中最常用|
+|`--network [网络名称]`|加入网络|同一子网中的两个容器可以通过名字相互访问|
 
 ## 3.Dockerfile格式
 ```dockerfile
@@ -69,6 +73,8 @@ EXPOSE 14540/udp
 # 容器启动时默认执行的命令，ENTRYPOINT与之相似但优先级更高，不容易被覆盖
 CMD ["/bin/bash"]
 ```
+## 4.docker-compose格式
 
+让ai写
 
 

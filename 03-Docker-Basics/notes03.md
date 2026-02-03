@@ -50,11 +50,12 @@ sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
-## 1.基本操作
+## 1.基本指令
 
 常用基本指令写在basic_commands.md里面了。
 
-创建镜像：
+
+## 2.创建镜像
 写一个`Dockerfile`（就叫这个，没有后缀）：
 ```dockerfile
 # 1. 指定基础镜像
@@ -92,8 +93,43 @@ docker build -t [镜像名] [路径（通常是.）]
 后面还有上传到Docker Hub，我懒得写了。
 
 
-## 2.一个尝试（作死）
+## 3.Docer网络
 前面拉取的是缩水版ROS。完整带图形化界面的```desktop```版太巨大了，拉不下来，而且在Docker里跑笨重的图形化界面不太合理。
 
+与宿主机共享网络（有两个奇葩报错没有解决）：
 ![alt text](image.png)
 
+子网通信:
+
+## 4.Docker Compose
+（例如在工作空间最顶层）创建`docker-compose.yml`：
+```yml
+version: '3.8'
+
+services:
+  # 服务 1：PX4 仿真器
+  px4_sitl:
+    image: px4io/px4-dev-ros2-foxy
+    container_name: sitl_gazebo
+    network_mode: "host"       # 对应 --network host
+    volumes:
+      - ./PX4-Autopilot:/src/PX4-Autopilot  # 对应 -v
+    environment:
+      - PX4_SIM_MODEL=gz_x500  # 对应 -e
+    stdin_open: true           # 对应 -i
+    tty: true                  # 对应 -t
+
+  # 服务 2：ROS 2 控制节点
+  offboard_control:
+    image: my_uav_controller:v1
+    container_name: uav_logic
+    network_mode: "host"
+    depends_on:
+      - px4_sitl               # 确保仿真器先启动
+    command: ros2 run my_package control_node
+```
+在该目录下：
+```bash
+docker-compose up
+```
+其他详见basic-commands.md
