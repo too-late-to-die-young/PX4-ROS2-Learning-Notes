@@ -54,7 +54,11 @@ ubuntu自带的截屏太巨大了，装了flameshot
 # 2.4 
 pid油管课，docker 补完 控制理论
 
-docker还没补完（悲）
-
 看了一天自控原理和pid，燃尽了
 
+# 2.5
+docker还没补完（悲）
+
+读minimum snap
+
+原文读到轨迹生成部分，先去把飞哥的课再看一遍
