@@ -80,7 +80,7 @@ $$
 懒得写了，论文里貌似也没有详细展开。
 #### 4.角加速度 → 力矩 → 电机的转速差
 
-![alt text](/images/minimum_snap_1.png)
+![alt text](/PX4-ROS2-Learning-Notes/images/minimum_snap_1.png)
 
 ## 2.控制
 对照原文和翻译基本可以看懂，可以简单理解为一个PD控制+前馈？
@@ -90,14 +90,306 @@ $$
 
 
 ## 3.轨迹生成
-读这一段之前先去把gf的空中机器人重看了一下（悲）。高老师的课主要讲导航和轨迹规划，Minimum snap在快结尾部分出现。
+
+[终极速通省流版](https://blog.csdn.net/weixin_65874645/article/details/155024581)
+
+读轨迹生成部分之前先去把gf的空中机器人重看了一下（悲）。高老师的课主要讲导航和轨迹规划，Minimum snap在快结尾部分出现。
 
 前端工作（路径搜索等）得到的轨迹也是很粗略的，需要后端生成**光滑连续**轨迹，这就是Minimum snap做的工作。
 
-**光滑**通常通过**最小化“输入”的变化率**来实现。
-首先明确：四旋翼无人机中，加速度不能突变。
+### 轨迹的描述
+飞机通过m个关键帧（keyframe），将整个轨迹分为m段，每段都是关于时间 $t$ 的 $n$ 阶多项式函数。分段的本质是为了降阶数（如果整个轨迹只用一个不分段的函数表示，它的阶数可能非常高）。
 
-飞机通过的m个关键帧（keyframe）。将整个轨迹分为m段，每段都是关于时间 $t$ 的 $n$ 阶多项式多项式函数。
+$$
+\sigma_T(t) =
+\begin{cases}
+\displaystyle\sum_{i=0}^n \sigma_{Ti1} t^i & t_0 \leq t < t_1 \\
+\displaystyle\sum_{i=0}^n \sigma_{Ti2} t^i & t_1 \leq t < t_2 \\
+\vdots & \vdots \\
+\displaystyle\sum_{i=0}^n \sigma_{Tim} t^i & t_{m-1} \leq t \leq t_m
+\end{cases}
+$$
+
+分段的多项式函数到底要取几阶（ $n$ ）取决于你的优化目标是最小化jerk还是snap。
+
+最小化jerk(3)：$3 \times 2 - 1 = 5$
+
+最小化snap(4)：$4 \times 2 - 1 = 7$
+
+
+### 轨迹优化的目标
+
+轨迹优化的最终目标——光滑，通常通过**最小化“输入”的变化率**来实现：
+
+$$
+\min \int_{t_0}^{t_m} \left[ \mu_r \left\| \frac{d^{k_r} \boldsymbol{r}_T}{dt^{k_r}} \right\|^2 + \mu_\psi \left( \frac{d^{k_\psi} \psi_T}{dt^{k_\psi}} \right)^2 \right] dt
+$$
+
+两项分别对应**平移运动**和**偏航运动**：
+- **平移运动**（位置 $\boldsymbol{r}$），取 $k_r=4$ ，因为控制输入（电机力矩/推力的导数）与位置的4阶导数相关。
+- **偏航角**（Yaw $\psi$），取 $k_\psi=2$ ，因为偏航力矩与偏航角的2阶导数相关。
+
+我们对两项分别平方（有点像求方差），一方面避免正负值相互抵消；同时构造二次规划（QP）问题。
+
+### 约束条件
+
+在达到优化目标的同时，轨迹还需要满足一些约束条件。一个最简单的例子如下（不考虑飞行走廊，最大速度等约束）：
+
+$$
+\sigma_T(t_i) = \sigma_i, \quad i = 0, \dots, m
+$$
+
+$$
+\left. \frac{d^p x_T}{dt^p} \right|_{t=t_j} = 0 \ \text{or free}, \quad j = 0, m; \ p = 1, \dots, k_r
+$$
+
+$$
+\left. \frac{d^p y_T}{dt^p} \right|_{t=t_j} = 0 \ \text{or free}, \quad j = 0, m; \ p = 1, \dots, k_r
+$$
+
+$$
+\left. \frac{d^p z_T}{dt^p} \right|_{t=t_j} = 0 \ \text{or free}, \quad j = 0, m; \ p = 1, \dots, k_r
+$$
+
+$$
+\left. \frac{d^p \psi_T}{dt^p} \right|_{t=t_j} = 0 \ \text{or free}, \quad j = 0, m; \ p = 1, \dots, k_\psi
+$$
+
+在这个例子中，我们规定了无人机始末位置的全部运动状态（位置，速度，加速度，jerk，snap）；以及无人机途径的所有点（仅确定位置）。
+
+四旋翼无人机中，加速度不能突变。所以还需要引入一个连续性约束（也就是两段轨迹之间的衔接要高阶连续）：
+
+*在关键帧时刻 $t_1,\dots,t_{m-1}$，位置 $\boldsymbol{r}_T$ 的前 $k_r$ 阶导数和偏航角 $\psi_T$ 的前 $k_\psi$ 阶导数保持连续。（取 $k_r=4$ $k_\psi=2$ ）*
+
+### 问题的一般化建模
+
+上文介绍了需要解决的问题，但是得到的优化目标和约束都很复杂。这个部分的目标是把上述复杂的目标和约束转化成一个简洁的、方便投给电脑求解的形式。
+（以下让gemini概括的，线代白痴很绝望了）
+##### 变量向量化 (Vectorization)
+将所有段、所有轴的多项式系数拼成一个巨大的向量 $\boldsymbol{c}$。对于每一段 $i$，其系数为 $\boldsymbol{c}_i=[a_{i0},a_{i1},\dots,a_{in}]^T$。整个问题的决策变量就是：
+$$
+\boldsymbol{c}=[\boldsymbol{c}_1^T,\boldsymbol{c}_2^T,\dots,\boldsymbol{c}_m^T]^T
+$$
+
+##### 构建 Hessian 矩阵 $\boldsymbol{H}$ (Cost Mapping)
+把目标函数（积分式）改写为标准二次型：$\min \boldsymbol{c}^T \boldsymbol{H} \boldsymbol{c}$。
+
+- 单段代价：对于第 $i$ 段，其 $k$ 阶导数平方的积分可以表示为 $\boldsymbol{c}_i^T \boldsymbol{Q}_i \boldsymbol{c}_i$。其中 $\boldsymbol{Q}_i$ 矩阵的元素是通过对 $t$ 的幂函数求导再积分得到的。
+- 全段集成：将每一段的 $\boldsymbol{Q}_i$ 按照块对角线排列，就得到了总的 Hessian 矩阵 $\boldsymbol{H}$。
+- 注意：$\boldsymbol{H}$ 是半正定的，这保证了问题的凸性（有一个很好的特性：局部最优即为全局最优）。
+
+##### 构建约束矩阵 $\boldsymbol{A}$ (Constraint Mapping)
+把所有的等式约束（起点终点状态、经过点位置、连续性要求）写成 $\boldsymbol{A}_{eq} \boldsymbol{c} = \boldsymbol{b}_{eq}$ 的形式。
+
+ 物理限制（不等式约束）：$\boldsymbol{A}_{ieq} \boldsymbol{c} \leq \boldsymbol{b}_{ieq}$，比如速度不能超过 $v_{\text{max}}$，轨迹必须在走廊 $\delta$ 内。
+
+##### 最终的 QP 标准型
+现在，复杂的轨迹优化问题被转化为标准的二次规划（QP）问题，可直接调用求解器求解：
+$$
+\begin{cases}
+\min\limits_{\boldsymbol{c}} & \boldsymbol{c}^T \boldsymbol{H} \boldsymbol{c} + \boldsymbol{f}^T \boldsymbol{c} \\
+\text{s.t.} & \boldsymbol{A}_{eq} \boldsymbol{c} = \boldsymbol{b}_{eq} \\
+& \boldsymbol{A}_{ieq} \boldsymbol{c} \leq \boldsymbol{b}_{ieq}
+\end{cases}
+$$
+这个写完还是太抽象了，我打算手搓一个示例po在这里：
+
+
+
+### 引入更复杂的情景
+在实际飞行中，还需要解决数值计算稳定性、空间安全性以及时间分配的合理性问题。
+
+#### 无量纲化/时空缩放
+由于轨迹通常涉及高阶多项式（如 7 阶），在计算过程中会出现 $t^7$ 甚至更高的项，在实际计算中可能引入极大或极小的数值。因此，我们将飞行时间归一化。
+
+**时间缩放**  
+引入无量纲时间 $\tau\in[0,1]$，通过时间映射公式 $t=\alpha\tau$（其中 $\alpha$ 叫时间缩放因子，为该段轨迹的总时长），将每段轨迹的时间维度归一化。
+原时间域的多项式 $w(t)$ 转换为无量纲时间域的多项式 $\tilde{w}(\tau)$。
+
+
+**空间缩放**
+引入空间缩放因子 $\beta_2$ 和平移因子 $\beta_1$，定义有量纲物理空间变量 $w(t)$ 与无量纲标准空间变量 $\tilde{w}(\tau)$ 的线性关系：
+$$w(t)=w(\alpha\tau)=\beta_1+\beta_2\tilde{w}(\tau)$$
+
+计算缩放前后的代价函数，发现它们只差一个系数：
+$$\int_{0}^{\alpha} \left\| \frac{d^k w(t)}{dt^k} \right\|^2 dt = \alpha^{2k-1}\beta_2^2 \int_{0}^{1} \left\| \frac{d^k \tilde{w}(\tau)}{d\tau^k} \right\|^2 d\tau$$
+
+系数 $\alpha^{2k-1}\beta_2^2$ 是与轨迹无关的常数，这意味着缩放前后最优解不变！这就带来了一些很好的性质：
+
+- 若路径形状不变，仅改变起终点的跨度，可通过线性变换系数 $\beta$ 直接缩放多项式系数，无需重新求解 QP 问题。
+
+- 若飞行过程中出现速度/加速度超限，只需增大时间因子 $\alpha$，轨迹的几何形状保持不变，但位置的所有阶导数会按比例下降，保证飞行安全。
+
+#### 飞行走廊约束
+在现实场景中无人机有导航或避障的需求，必须在安全的飞行走廊内通过。通过线性化、采样，将这个问题转化为一个不等式约束。
+
+**线性化**
+在相邻关键帧 $\boldsymbol{r}_i$ 到 $\boldsymbol{r}_{i+1}$ 的连线上，定义轨迹相对于该连线的垂直偏移量 $\boldsymbol{d}_i(t)$。
+$$
+\boldsymbol{d}_i(t) = \left( \boldsymbol{r}_T(t) - \boldsymbol{r}_i \right) - \left( \left( \boldsymbol{r}_T(t) - \boldsymbol{r}_i \right) \cdot \boldsymbol{t}_i \right) \boldsymbol{t}_i
+$$
+
+**采样**
+在每段轨迹的时间域内均匀选取 $n_c$ 个采样点，强制所有采样点的偏移量落在走廊宽度 $\delta_i$ 内：
+$$\|\boldsymbol{d}_i(t_j)\|_\infty \leq \delta_i$$
+其中 $t_j$ 为第 $j$ 个采样点对应的时刻，$\|\cdot\|_\infty$ 为无穷范数（切比雪夫范数），可保证偏移量在各空间轴向上的绝对值均不超过安全阈值。
+
+这样就得到了 $2\times n_c$ 个易处理的线性不等式约束，可以放到二次规划的标准约束形式 $\boldsymbol{A}_{ieq}\boldsymbol{c} \leq \boldsymbol{b}_{ieq}$ 里面。
+
+#### 最优航段时间
+分段轨迹取决于分段时间分配，时间分配显著影响最终轨迹。这个部分解决如何合理分配时间的问题。
+
+可以先这样理解：
+
+我们要找到最优时间分配方案（代价函数最小）：
+$$
+\min \quad f(\boldsymbol{T})
+$$
+
+
+先“随便”给每段分配个初始时长：
+$$
+\boldsymbol{T} = [T_1, T_2, \dots, T_m]
+$$
+
+$$
+ \quad \sum T_i = t_m
+$$
+
+$$
+T_i \geq 0
+$$
+
+对于每一段时间，我们微微 增加/减小 它的长度，并把增减量平均扣除到剩下的时长里（使得总时长保持不变），观察总代价函数是变大了还是变小了。始终往代价变小的方向调。
+
+这个微调各段时长的操作，写成一个向量 $g_i$ ，它表示 "增加第 $i$ 段的时间，同时同比例减少其他段的时间" 。
+
+这个微调带来的代价函数变化结果则用梯度表示：
+
+$$
+\nabla_{g_i} f = \frac{f(\boldsymbol{T} + h g_i) - f(\boldsymbol{T})}{h}
+$$
+
+
+
+处理完一段时间后接着处理下一段，处理完一轮后接着处理下一轮……直到算法收敛。
+
+
+
+我觉得这是这里面最抽象的一个东西（
 
 
 ## 4.术语表
+叫ai做的，没细审过
+| 中文术语 | 英文术语 |
+| ---- | ---- |
+| 高度受限场景 | tightly constrained setting |
+| 控制器设计 | controller design |
+| 轨迹生成 | trajectory generation |
+| 横滚角 | roll angle |
+| 俯仰角 | pitch angle |
+| 小角度近似 | small angle approximation |
+| 偏航角 | yaw angle |
+| 最优轨迹 | optimal trajectory |
+| 飞行走廊 | corridor |
+| 速度 | velocity |
+| 加速度 | acceleration |
+| 输入量 | input |
+| 非线性控制器 | nonlinear controller |
+| 微型无人机 | micro Unmanned Aerial Vehicle (micro UAV) |
+| 四旋翼无人机 | quadrotor |
+| 模型线性化 | model linearization |
+| 动态系统 | dynamic system |
+| 可达性算法 | reachability algorithm |
+| 增量搜索技术 | incremental search technique |
+| 线性二次调节器树搜索算法 | LQR-tree-based search algorithm |
+| 状态空间 | state space |
+| 特技飞行动作 | aerobatic maneuver |
+| 稳定性 | stability |
+| 收敛性 | convergence |
+| 机器学习技术 | machine learning technique |
+| 强化学习 | reinforcement learning |
+| 运动规划 | motion planning |
+| 模型预测控制 | Model Predictive Control (MPC) |
+| 线性化模型 | linearized model |
+| 控制李雅普诺夫函数 | control Lyapunov function |
+| 飞行规划 | flight plan |
+| 动力学特性 | dynamics |
+| 可达速度 | achievable velocity |
+| 关键帧 | keyframe |
+| 坐标系 | coordinate system |
+| 世界坐标系 | world frame |
+| 机体坐标系 | body frame |
+| 螺旋桨编号规则 | propeller numbering convention |
+| 奇异性 | singularity |
+| 旋转矩阵 | rotation matrix |
+| Z-X-Y欧拉角 | Z-X-Y Euler angles |
+| 角速度 | angular velocity |
+| 螺旋桨 | propeller |
+| 升力 | force |
+| 力矩 | moment |
+| 电机动力学特性 | motor dynamics |
+| 刚体动力学 | rigid body dynamics |
+| 空气动力学特性 | aerodynamics |
+| 总升力 | net body force |
+| 机体力矩 | body moment |
+| 质心 | center of mass |
+| 位置矢量 | position vector |
+| 重力 | gravity |
+| 牛顿运动定律 | Newton’s equations of motion |
+| 角加速度 | angular acceleration |
+| 欧拉方程 | Euler equations |
+| 转动惯量矩阵 | moment of inertia matrix |
+| 状态量 | state |
+| 微分平坦系统 | differentially flat system |
+| 平坦输出量 | flat output |
+| 欠驱动系统 | underactuated system |
+| 位置误差 | position error |
+| 速度误差 | velocity error |
+| 期望力向量 | desired force vector |
+| 正定增益矩阵 | positive definite gain matrix |
+| 姿态误差 | orientation error |
+| 向量映射算子 | vee map |
+| 特殊正交李代数 | Special Orthogonal Lie Algebra (so(3)) |
+| 角速度误差 | angular velocity error |
+| 对角增益矩阵 | diagonal gain matrix |
+| 前馈项 | feedforward term |
+| 初始条件 | initial condition |
+| 指数稳定性 | exponential stability |
+| 几乎全局指数吸引性 | almost globally exponential attractiveness |
+| 分段多项式函数 | piecewise polynomial function |
+| 代价函数 | cost function |
+| 优化问题 | optimization problem |
+| 无量纲化常数 | nondimensional constant |
+| 二次规划问题 | Quadratic Program (QP) |
+| 决策变量 | decision variable |
+| 无量纲化 | nondimensionalization |
+| 无量纲变量 | nondimensional variable |
+| 时间缩放 | temporal scaling |
+| 空间缩放 | spatial scaling |
+| 垂直距离向量 | perpendicular distance vector |
+| 无穷范数 | infinity norm |
+| 线性约束 | linear constraint |
+| 最优航段时间 | optimal segment time |
+| 约束梯度下降法 | constrained gradient descent method |
+| 方向导数 | directional derivative |
+| 回溯线搜索法 | backtracking line search |
+| 运动捕捉系统 | motion capture system |
+| 陀螺仪 | gyro |
+| 二次空气阻力模型 | quadratic air drag model |
+| 甩动 | snap |
+| 加加速度 | jerk |
+| 特殊正交群 | Special Orthogonal Group (SO(2)/SO(3)) |
+| 实数空间 | Real Space ($\mathbb{R}^{3}$) |
+| 迹 | Trace (tr) |
+| 最小特征值 | Minimum Eigenvalue ($\lambda_{min}$) |
+| 单位向量 | Unit Vector |
+| 点乘 | Dot Product (·) |
+| 叉乘 | Cross Product (×) |
+| 多项式基函数 | Polynomial Basis Function |
+| 梯度 | Gradient |
+| 积分 | Integral |
+| 导数 | Derivative |
+| 等式约束 | Equality Constraint |
+| 不等式约束 | Inequality Constraint |
+| 目标函数 | Objective Function |
