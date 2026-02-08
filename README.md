@@ -14,3 +14,10 @@ PID
 Plotjuggler，Flight Review使用
 
 ## 03-Docker-Basics
+Docker的基本使用
+常用指令手册
+
+## 04-Preparations
+其他一些前置知识，如机器人学，自控理论等
+（并没有开始写的一个情况）
+

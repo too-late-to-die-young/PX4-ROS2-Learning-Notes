@@ -90,8 +90,9 @@ $$
 
 
 ## 3.轨迹生成
+快速建立对minimum_snap的概念可以读这个[终极速通省流版](https://blog.csdn.net/weixin_65874645/article/details/155024581)。
 
-[终极速通省流版](https://blog.csdn.net/weixin_65874645/article/details/155024581)
+完整学习用的这个[代码](https://github.com/zm0612/Minimum-Snap/tree/2666bbaeb7442b0a3300d93b4ebd487cd8ba26db)和它的[讲解](https://blog.csdn.net/u011341856/article/details/121861930)。
 
 读轨迹生成部分之前先去把gf的空中机器人重看了一下（悲）。高老师的课主要讲导航和轨迹规划，Minimum snap在快结尾部分出现。
 
@@ -192,7 +193,7 @@ $$
 & \boldsymbol{A}_{ieq} \boldsymbol{c} \leq \boldsymbol{b}_{ieq}
 \end{cases}
 $$
-这个写完还是太抽象了，我打算手搓一个示例po在这里：
+这个写完还是太抽象了，我打算手搓一个示例po在后面
 
 
 
