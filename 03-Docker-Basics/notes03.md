@@ -97,7 +97,7 @@ docker build -t [镜像名] [路径（通常是.）]
 前面拉取的是缩水版ROS。完整带图形化界面的```desktop```版太巨大了，拉不下来，而且在Docker里跑笨重的图形化界面不太合理。
 
 与宿主机共享网络（有两个奇葩报错没有解决）：
-![alt text](image.png)
+![alt text](/images/docker_basics_1.png)
 
 子网通信:
 

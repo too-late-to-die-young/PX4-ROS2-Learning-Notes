@@ -139,6 +139,7 @@ def solve_osqp(Q_all, A_eq, b_eq):
 def allocate_time(waypoints, v_max, a_max):
     """
     根据梯形速度剖面分配每段轨迹的时间
+    但是这里算时间用的都是直线，所以最大速度最好留一点余量
     """
     T_list = []
     # 计算加速到最大速度所需的位移
