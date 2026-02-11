@@ -21,3 +21,7 @@ Docker的基本使用
 其他一些前置知识，如机器人学，自控理论等
 （并没有开始写的一个情况）
 
+## 05-Minimum-Snap
+minimum snap 读论文笔记
+python演示minimum snap的lab
+rviz演示

@@ -123,15 +123,42 @@ def get_poly_basis(t,n,r):
 
 使用梯形时间分配：
 ```py
-
-
+def allocate_time(waypoints, v_max, a_max):
+    """
+    根据梯形速度剖面分配每段轨迹的时间
+    但是这里算时间用的都是直线，所以最大速度最好留一点余量
+    """
+    T_list = []
+    # 计算加速到最大速度所需的位移
+    # v = a*t -> t = v/a
+    # d = 0.5 * a * t^2 = 0.5 * v^2 / a
+    d_acc_dec = (v_max**2) / (a_max) # 加速段+减速段的总位移
+    
+    for i in range(len(waypoints) - 1):
+        dist = abs(waypoints[i+1] - waypoints[i])
+        
+        if dist > d_acc_dec:
+            # 情况1：能达到最大速度 (梯形)
+            t_acc = v_max / a_max
+            t_const = (dist - d_acc_dec) / v_max
+            T = 2 * t_acc + t_const
+        else:
+            # 情况2：达不到最大速度 (三角形)
+            # dist = 2 * (0.5 * a * t_half^2) = a * t_half^2
+            # t_half = sqrt(dist / a)
+            T = 2 * np.sqrt(dist / a_max)
+            
+        # 避免时间过短导致数值问题
+        T_list.append(max(T, 0.1))
+        
+    return T_list
 ```
 生成轨迹：
 ![alt text](image-1.png)
 
 #### 闭式求解
 
-会更快，但对于不等式约束就不行了
+如果QP问题只有等式约束，没有不等式约束，则是可以闭式求解的。这样效率要高得多，而且不需要QPsolver。
 
 
 
@@ -144,5 +171,13 @@ def get_poly_basis(t,n,r):
 ![alt text](<截图 2026-02-09 22-42-01.png>)
 加了中间一段（这个叫ai写的，随便跑了一下，代码没有存在这里）：
 ![alt text](image-2.png)
-这个东西算得太慢了，上不了仿真的
-打算去抄抄他山之石（
+
+
+## 3.rviz可视化
+在你的工作空间src目录下：
+```bash
+ros2 pkg create --build-type ament_python trajectory_viz --dependencies rclpy visualization_msgs geometry_msgs
+```
+`--build-type ament_python`：指定开发语言为python
+`trajectory_viz`：包名
+`--dependencies `：我的包需要哪些外部库，这样就会自动写到`package.xml`里面
