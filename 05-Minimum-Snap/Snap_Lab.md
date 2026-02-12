@@ -9,8 +9,9 @@
 
 ## 0.准备
 安一个miniconda
+我一开始准备的是3.10的python环境，被坑死了，记得选ROS版本适配的python
 ```bash
-conda create -n snap_env python=3.10
+conda create -n snap_env python=3.12
 
 # 进入环境
 conda activate snap_env
@@ -119,7 +120,7 @@ def get_poly_basis(t,n,r):
 ### 优化
 #### 时间分配优化
 如果使用均分的时间分配方案，每段时间相等，生成轨迹：
-![alt text](image.png)
+![alt text](/images/snap_lab_1.png)
 
 使用梯形时间分配：
 ```py
@@ -154,7 +155,7 @@ def allocate_time(waypoints, v_max, a_max):
     return T_list
 ```
 生成轨迹：
-![alt text](image-1.png)
+![alt text](/images/snap_lab_2.png)
 
 #### 闭式求解
 
@@ -166,11 +167,11 @@ def allocate_time(waypoints, v_max, a_max):
 
 代码参考`scripts/minimum_snap_lab_3d.py`
 未加飞行走廊约束：
-![alt text](<截图 2026-02-09 22-38-35.png>)
+![alt text](/images/snap_lab_3.png)
 加了（全段轨迹都加）：
-![alt text](<截图 2026-02-09 22-42-01.png>)
+![alt text](/images/snap_lab_4.png)
 加了中间一段（这个叫ai写的，随便跑了一下，代码没有存在这里）：
-![alt text](image-2.png)
+![alt text](/images/snap_lab_5.png)
 
 
 ## 3.rviz可视化
@@ -181,3 +182,10 @@ ros2 pkg create --build-type ament_python trajectory_viz --dependencies rclpy vi
 `--build-type ament_python`：指定开发语言为python
 `trajectory_viz`：包名
 `--dependencies `：我的包需要哪些外部库，这样就会自动写到`package.xml`里面
+
+把可视化的python的代码导到`trajectory_viz/trajectory_viz`里。代码在`/scripts/snap_rviz_visualize.py`。
+conda环境里不能`ros2 run`，要直接`python `运行。
+
+可视化了飞行走廊和轨迹之后果真发现一个bug，走廊采样点太稀疏了，并没有全覆盖轨迹，所以把采样改得稍微密了一点。
+成品：
+![alt text](/images/snap_lab_6.png)

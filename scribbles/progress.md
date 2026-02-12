@@ -86,3 +86,8 @@ rviz可视化飞行通道
 # 2.11
 继续rviz可视化
 出去玩（
+
+# 2.12
+可视化完成
+读论文*Polynomial Trajectory Planning for Aggressive
+Quadrotor Flight in Dense Indoor Environments*
