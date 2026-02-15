@@ -159,10 +159,116 @@ def allocate_time(waypoints, v_max, a_max):
 
 #### 闭式求解
 
-如果QP问题只有等式约束，没有不等式约束，则是可以闭式求解的。这样效率要高得多，而且不需要QPsolver。
+如果QP问题只有等式约束，没有不等式约束，则是可以闭式求解的。这样效率要高得多。
+参考论文：
+*Polynomial Trajectory Planning for Aggressive
+Quadrotor Flight in Dense Indoor Environments*
 
+原本的求解器：
+```python
+def solve_osqp(Q_all, A_eq, b_eq):
+    # 1. 准备目标函数矩阵 P (即 Q_all)
+    # OSQP 要求 P 是稀疏矩阵且为上三角或全矩阵
+    P = sparse.csc_matrix(Q_all)
+    q = np.zeros(Q_all.shape[0])
 
+    # 2. 准备约束矩阵 A
+    # OSQP 的约束形式是 l <= Ax <= u
+    A = sparse.csc_matrix(A_eq)
+    
+    # 对于等式约束，下限 l 和上限 u 相等，都等于 b_eq
+    l = b_eq
+    u = b_eq
 
+    # 3. 创建 OSQP 实例并配置
+    prob = osqp.OSQP()
+    
+    # setup 函数初始化问题
+    # eps_abs/rel 是收敛精度，对于轨迹规划可以设得细一点
+    prob.setup(P, q, A, l, u, warm_start=True, verbose=False, eps_abs=1e-8, eps_rel=1e-8)
+    
+    # 4. 求解
+    res = prob.solve()
+    
+    # 检查状态并返回结果
+    if res.info.status == 'solved':
+        return res.x
+    else:
+        raise ValueError("OSQP 未能找到最优解，请检查约束是否冲突。")
+
+```
+如果使用闭式求解：
+```python
+def minimum_snap_closed_form(wayp, ts, n_order, v0, a0, v1, a1):
+    # n_order轨迹次数， n_coef多项式系数数， n_poly 轨迹段数， n_continuous轨迹连续次数
+    n_coef = n_order + 1
+    n_poly = len(wayp) - 1
+    n_continuous = 4  
+
+    # 1. compute Q (直接利用你原本的符号 Q 函数逻辑)
+    _, q_func = get_symbolic_q(n_order, 4) 
+    Q_all = block_diag(*[q_func(T) for T in (np.diff(ts))])
+
+    # 2. compute A (由多项式系数映射到段端点导数)
+    # 结构完全参考 Matlab: A * p = d_segments
+    A = np.zeros((n_continuous * 2 * n_poly, n_coef * n_poly))
+    for i in range(n_poly):
+        T_seg = ts[i+1] - ts[i]
+        for j in range(n_continuous):
+            # 起点 t=0
+            A[n_continuous*2*i + j, n_coef*i : n_coef*(i+1)] = get_poly_basis(0, n_order, j)
+            # 终点 t=T_seg (注意：这里使用局部时间)
+            A[n_continuous*2*i + n_continuous + j, n_coef*i : n_coef*(i+1)] = get_poly_basis(T_seg, n_order, j)
+    
+    # 3. compute M (将每段独立的端点导数 映射到 唯一的节点导数)
+    num_d = n_continuous * (n_poly + 1)
+    M = np.zeros((n_poly * 2 * n_continuous, num_d))
+    for i in range(n_poly):
+        # 第 i 段起点 -> 第 i 个节点
+        M[2*i*n_continuous : (2*i+1)*n_continuous, i*n_continuous : (i+1)*n_continuous] = np.eye(n_continuous)
+        # 第 i 段终点 -> 第 i+1 个节点
+        M[(2*i+1)*n_continuous : (2*i+2)*n_continuous, (i+1)*n_continuous : (i+2)*n_continuous] = np.eye(n_continuous)
+
+    # 4. compute C (置换矩阵，重排固定导数和自由导数)
+    # fix_idx 包含：所有位置(p)，起点v,a，终点v,a
+    fix_idx = []
+    for i in range(n_poly + 1):
+        fix_idx.append(i * n_continuous) # 所有节点的位置 p
+    fix_idx.extend([1, 2]) # 起点 v, a
+    fix_idx.extend([num_d - n_continuous + 1, num_d - n_continuous + 2]) # 终点 v, a
+    fix_idx = sorted(list(set(fix_idx)))
+    free_idx = [i for i in range(num_d) if i not in fix_idx]
+
+    # 构建 df (固定导数值)
+    df = np.zeros(len(fix_idx))
+    for i, idx in enumerate(fix_idx):
+        if idx % n_continuous == 0:
+            df[i] = wayp[idx // n_continuous]
+        # v0, a0, v1, a1 已默认为 0
+
+    # 组合 C 矩阵并计算 R
+    # eye：生成单位矩阵
+    C = np.eye(num_d)[:, fix_idx + free_idx]
+    
+    # 这里的 AiMC 对应 Matlab 里的 inv(A)*M*C
+    AiMC = inv(A) @ M @ C
+    R = AiMC.T @ Q_all @ AiMC
+
+    # 5. 矩阵分块求解
+    n_fix = len(fix_idx)
+    Rff = R[:n_fix, :n_fix]
+    Rfp = R[:n_fix, n_fix:]
+    Rpf = R[n_fix:, :n_fix]
+    Rpp = R[n_fix:, n_fix:]
+
+    # 最优解公式: dp = -inv(Rpp) * Rpf * df
+    dp = -inv(Rpp) @ Rpf @ df
+
+    # 恢复系数 p = AiMC * [df; dp]
+    p_all = AiMC @ np.concatenate([df, dp])
+    polys = p_all.reshape(n_poly, n_coef)
+    return polys
+```
 ## 2. 三维轨迹生成和飞行走廊约束
 
 代码参考`scripts/minimum_snap_lab_3d.py`

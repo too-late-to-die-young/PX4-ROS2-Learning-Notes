@@ -91,3 +91,13 @@ rviz可视化飞行通道
 可视化完成
 读论文*Polynomial Trajectory Planning for Aggressive
 Quadrotor Flight in Dense Indoor Environments*
+
+# 2.13
+玩
+
+# 2.14
+玩
+
+# 2.15
+完成闭式求解
+开始看2020论文
