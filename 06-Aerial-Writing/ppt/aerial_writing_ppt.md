@@ -233,6 +233,23 @@ $$F_f = \underbrace{{}^r F}_{\text{期望压力}} - \underbrace{K_{e,p} e_x - K_
     - **$K_{e,p}, K_{e,d}$**：**归一化刚度与阻尼**。该项让无人机在法向上表现得像个“弹簧”。当机身因扰动产生位移 $e_x$ 时，该项迅速介入吸收震动，防止笔尖生硬撞击墙面或瞬间脱离。
 
 ---
+### 状态选择矩阵
+引入选择矩阵 $\Lambda$ 来划分控制空间，决定何时使用力控制，何时使用运动控制：
+
+$${}_B \boldsymbol{\tau}_a = R_{\mathcal{B}}^{\mathcal{C}} \left( (\mathbf{I}_{6 \times 6} - \Lambda) R_{\mathcal{C}}^{\mathcal{B}} {}_B \boldsymbol{\tau}_p + \Lambda R_{\mathcal{C}}^{\mathcal{B}} {}_B \boldsymbol{\tau}_f \right)$$
+
+
+**矩阵定义**：$\Lambda = \text{blockdiag}[\delta, 0, 0, 0, 0, 0] \in \mathbb{R}^{6 \times 6}$，其中 $\delta \in \{0, 1\}$ 。
+
+
+**$\Lambda$**：选择直接的**力控制指令** $\boldsymbol{\tau}_f$。由于 $\delta$ 仅在第一项（法向），这确保了力控制只作用于垂直表面的轴向 。
+**$(\mathbf{I} - \Lambda)$**：选择其正交补空间执行**运动控制指令** $\boldsymbol{\tau}_p$，即在切向面（平面的 $y, z$ 轴）和旋转自由度上保证字形的精准 。
+
+
+**自由飞行阶段 (${}^r F = 0$)**：$\delta = 0$。此时 $\Lambda = \mathbf{0}$，系统退化为纯运动控制（6 自由度全位置跟踪），用于起飞和笔画间的转场 。
+
+**书写接触阶段 (${}^r F > 0$)**：$\delta = 1$。系统在法向上切换为力控制，以保证笔画粗细，同时在其他方向继续运动跟踪 。
+
 
 
 ---
