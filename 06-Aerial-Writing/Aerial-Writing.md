@@ -1,3 +1,5 @@
+*项目的主要研究内容包含三部分。一是书法风格特征建模与数据构建。利用计算机视觉技术对经典书法作品进行数字化解析，提取笔画力度、速度及连笔特征等关键风格参数。通过构建包含图像、轨迹与力学数据的多模态数据库，并采用特征工程方法将书法风格转化为可量化的向量空间表示，实现风格的数学建模。二是大语言模型与检索增强生成的融合框架设计。利用大语言模型结合文字结构生成初始的空中书写路径序列。引入检索增强生成机制，从数据库中检索风格相关的历史数据以动态优化路径，通过“全局预测”与“局部修正”的协同策略平衡生成结果的创造力与准确性。三是空中操作机器人协同运动规划算法。在开源空中操作机器人协同运动规划算法的基础上，引入机器人的运动学模型，确保空中书写过程在满足物理约束下的稳定性与平滑性。*
+
 # 空中书写
 这是读论文时随便记的，内容不完整，主要是一些自己不明白的点。
 ## 第一篇论文
@@ -239,3 +241,84 @@ $$
 注意这里求旋转矩阵误差的方法 $\boldsymbol{e}_R = \frac{1}{2}\left({^r}\boldsymbol{R}_{WB}^\top \boldsymbol{R}_{WB} - \boldsymbol{R}_{WB} \cdot {^r}\boldsymbol{R}_{WB}^\top\right)^\lor$。在minimum snap那篇论文中也出现过。
 
 计算控制空间力的笔记直接写到论文上了……
+
+
+
+
+>项目计划书：基于大语言模型与检索增强生成的空中书法机器人系统
+（1）项目的主要内容
+本项目旨在开发一个创新的空中书法机器人系统，该系统融合了计算机视觉、大语言模型（LLM）、检索增强生成（RAG）技术和空中操作机器人控制算法。主要研究内容包含以下三个部分：
+1. 书法风格特征建模与数据构建
+利用先进的计算机视觉技术对经典书法作品进行数字化解析，提取笔画力度、速度、连笔特征等关键风格参数 [1]。通过构建包含图像、轨迹与力学数据的多模态数据库，采用特征工程方法将书法风格转化为可量化的向量空间表示，实现风格的数学建模。这一过程借鉴了现有的书法风格识别与分类方法 [2]，但将扩展到更全面的多模态特征提取。
+2. 大语言模型与检索增强生成的融合框架设计
+利用大语言模型结合文字结构生成初始的空中书写路径序列。引入检索增强生成机制，从数据库中检索风格相关的历史数据以动态优化路径，通过"全局预测"与"局部修正"的协同策略平衡生成结果的创造力与准确性。这一方法借鉴了现有的书法生成技术 [3]，但创新性地引入了RAG机制来增强风格一致性。
+3. 空中操作机器人协同运动规划算法
+在开源空中操作机器人协同运动规划算法的基础上，引入机器人的运动学模型，确保空中书写过程在满足物理约束下的稳定性与平滑性。研究将参考现有的无人机书法系统设计 [4]和机器人书写轨迹规划方法 [5]，但将重点放在多机器人协同控制和运动学约束优化上。
+
+（2）计划目标
+本项目的主要计划目标包括：
+书法风格化的实现方法：开发一套完整的书法风格特征提取、建模和生成方法，能够准确捕捉和再现不同书法家的风格特征。目标是在风格相似度评估中达到85%以上的准确率。
+实现基于大语言模型与RAG的空中书写轨迹规划算法：设计并实现一个融合大语言模型和检索增强生成的轨迹规划框架，能够根据输入的文字内容和指定的书法风格，生成符合物理约束的空中书写轨迹。
+发表高水平学术论文1篇：计划在机器人学或人工智能领域的国际会议上发表研究成果，如IEEE International Conference on Robotics and Automation (ICRA)或IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)。
+开发原型系统：构建一个包含至少两个空中操作机器人的原型系统，能够演示基本的空中书法书写功能。
+（3）拟解决的问题
+1. 书法风格特征建模机制
+传统书法风格建模方法往往依赖于单一模态的特征提取，难以全面捕捉书法艺术的复杂美学特征。本项目拟解决的问题包括：
+如何从有限的书法样本中提取全面、可量化的风格特征
+如何建立有效的风格向量空间表示，支持风格插值和迁移
+如何评估生成结果的风格相似度和美学质量
+现有的研究已经探索了书法风格的特征提取方法 [6]，但多模态融合和深度学习方法的结合仍有待深入研究。
+2. 不同风格的书写轨迹规划机制
+空中书法书写面临独特的挑战，包括机器人的物理约束、空气动力学影响和多机器人协同控制。本项目拟解决的问题包括：
+如何将抽象的书法风格特征转化为具体的机器人运动轨迹
+如何在满足物理约束的同时保持书法作品的艺术性
+如何实现多机器人的协同书写，确保笔画连贯性和整体协调性
+现有的机器人书法系统主要关注地面机器人的书写 [7]，空中书法系统的研究相对较少，特别是在多机器人协同方面。
+3. 大语言模型与检索增强生成的融合机制
+虽然大语言模型在文本生成方面表现出色，但在生成符合物理约束的机器人运动轨迹方面仍面临挑战。本项目拟解决的问题包括：
+如何让大语言模型理解书法结构和机器人运动学约束
+如何设计有效的检索机制，从历史数据中获取相关的风格信息
+如何平衡生成结果的创造性和物理可行性
+思路方法
+本项目将采用以下研究方法：
+1. 数据驱动的风格建模方法
+收集包含不同书法家作品的数字化数据集，使用卷积神经网络（CNN）提取视觉特征，同时结合运动捕捉数据获取书写动力学特征。通过对比学习和自监督学习的方法，学习风格的特征表示 [8]。
+2. 分层轨迹规划框架
+采用分层规划策略：上层使用大语言模型生成抽象的笔画序列和布局规划；中层使用检索增强生成机制优化具体轨迹；下层使用基于物理的优化算法确保轨迹的可行性。
+3. 仿真与实验验证相结合
+首先在仿真环境中验证算法有效性，然后在实际的空中操作机器人平台上进行实验验证。使用运动捕捉系统评估书写精度，同时邀请书法专家对生成作品进行美学评价。
+
+组织实施及进度安排
+研究团队组织：
+项目团队包括计算机视觉专家、机器人控制专家、人工智能算法工程师和书法艺术顾问。团队成员将定期举行技术讨论会，确保各模块的协同工作。
+进度安排：
+第1-3个月：文献调研和技术方案设计，完成书法数据集收集和预处理
+第4-6个月：开发书法风格特征提取和建模算法，构建多模态数据库
+第7-9个月：实现大语言模型与RAG融合的轨迹规划框架
+第10-12个月：开发空中操作机器人控制算法，进行仿真验证
+第13-15个月：原型系统集成和实验验证，算法优化
+第16-18个月：系统测试和性能评估，论文撰写和投稿
+预期成果：
+一套完整的空中书法机器人系统原型
+开源的多模态书法数据集
+相关算法的开源实现
+至少1篇高水平学术论文
+本项目的研究不仅具有重要的学术价值，为机器人艺术创作和人机交互提供新的思路，也具有广泛的应用前景，如文化遗产数字化保护、艺术教育和娱乐产业等。
+
+参考文献
+[1]C. V. Jawahar and A. Balasubramanian, "Computational method for calligraphic style representation and classification," Journal of Electronic Imaging, vol. 24, no. 5, p. 053003, 2015
+DOI: 10.1117/1.jei.24.5.053003
+[2]S. M. Yussof, "An efficient multiple-classifier system for Arabic calligraphy style recognition," in 2019 International Conference on Networking and Advanced Systems (ICNAS), 2019, pp. 1-6
+DOI: 10.1109/icnas.2019.8807829
+[3]S. Xu, S.-C. Zhu, and S.-M. Hu, "Automatic Generation of Chinese Calligraphic Writings with Style Imitation," IEEE Intelligent Systems, vol. 24, no. 2, pp. 44-53, 2009
+DOI: 10.1109/mis.2009.23
+[4]K. H. Low, J. Chen, and Y. Wang, "Systems design and implementation with jerk-optimized trajectory generation for UAV calligraphy," Mechatronics, vol. 30, pp. 1-13, 2015
+DOI: 10.1016/j.mechatronics.2015.06.006
+[5]C.-H. Chen, C.-Y. Tsai, and F.-C. Tai, "Human-like robotic handwriting and drawing," in 2013 IEEE International Conference on Robotics and Automation, 2013, pp. 1677-1682
+DOI: 10.1109/icra.2013.6631283
+[6]M. A. Al-Saleh and A. M. El-Zaart, "A New Computational Method for Arabic Calligraphy Style Representation and Classification," Applied Sciences, vol. 11, no. 11, p. 4852, 2021
+DOI: 10.3390/app11114852
+[7]Y. Zeng, Y. Wang, and C. W. de Silva, "A robot calligraphy system: From simple to complex writing by human gestures," Engineering Applications of Artificial Intelligence, vol. 59, pp. 1-14, 2017
+DOI: 10.1016/j.engappai.2016.12.006
+[8]Z. Zhang, Y. Zhang, and C. L. P. Chen, "A data-driven robotic Chinese calligraphy system using convolutional auto-encoder and differential evolution," Knowledge-Based Systems, vol. 182, p. 104785, 2019
+DOI: 10.1016/j.knosys.2019.06.010
